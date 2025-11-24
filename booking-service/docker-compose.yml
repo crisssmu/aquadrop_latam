@@ -1,0 +1,36 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: postgres_booking
+    restart: always
+    environment:
+      POSTGRES_DB: bookingdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aquadrop-latam
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbit_booking
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    networks:
+      - aquadrop-latam
+
+volumes:
+  booking_postgres_data:
+
+networks:
+  aquadrop-latam:
+    name: aquadrop-latam
