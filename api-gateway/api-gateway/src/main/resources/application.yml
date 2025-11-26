@@ -24,22 +24,23 @@ spring:
             '[redis-rate-limiter.replenish-rate]': 8
             '[redis-rate-limiter.burst-capacity]': 20
             key-resolver: "#{@userIdKeyResolver}"
-        # Circuit Breaker (DISABLED)
-        # - name: CircuitBreaker
-        #   args:
-        #     name: gateway-breaker
-        #     fallbackUri: forward:/fallback
-        # Retry
+        # Circuit Breaker Global
+        - name: CircuitBreaker
+          args:
+            name: globalCircuitBreaker
+            fallbackUri: forward:/fallback
+        # Retry con exponential backoff (solo GET, errores 5xx)
         - name: Retry
           args:
             retries: 3
-            methods: GET,HEAD
+            methods: GET
             series: SERVER_ERROR
-            exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+            exceptions: java.io.IOException,java.util.concurrent.TimeoutException,org.springframework.cloud.gateway.support.NotFoundException
             backoff:
-              firstBackoff: 50ms
-              maxBackoff: 1600ms
+              firstBackoff: 100ms
+              maxBackoff: 2000ms
               factor: 2
+              basedOnPreviousValue: true
         # Request Size Limit (3MB)
         - name: RequestSize
           args:
@@ -62,6 +63,20 @@ spring:
           filters:
             - StripPrefix=1
             - AddResponseHeader=X-Service,booking-service
+            - name: CircuitBreaker
+              args:
+                name: bookingCircuitBreaker
+                fallbackUri: forward:/fallback/bookings
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 2000ms
+                  factor: 2
+                  basedOnPreviousValue: true
             - name: RequestRateLimiter
               args:
                 redis-rate-limiter.replenish-rate: 8
@@ -95,6 +110,20 @@ spring:
           filters:
             - StripPrefix=2
             - AddResponseHeader=X-Service,fleet-service
+            - name: CircuitBreaker
+              args:
+                name: fleetCircuitBreaker
+                fallbackUri: forward:/fallback/fleet
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 2000ms
+                  factor: 2
+                  basedOnPreviousValue: true
             - name: RequestRateLimiter
               args:
                 '[redis-rate-limiter.replenish-rate]': 20
@@ -124,6 +153,20 @@ spring:
           filters:
             - StripPrefix=2
             - AddResponseHeader=X-Service,payment-service
+            - name: CircuitBreaker
+              args:
+                name: paymentCircuitBreaker
+                fallbackUri: forward:/fallback/payments
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                series: SERVER_ERROR
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 2000ms
+                  factor: 2
+                  basedOnPreviousValue: true
             - name: RequestRateLimiter
               args:
                 '[redis-rate-limiter.replenish-rate]': 5
@@ -244,3 +287,47 @@ management:
   otlp:
     tracing:
       endpoint: http://localhost:4317
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.cloud.gateway.support.NotFoundException
+    instances:
+      globalCircuitBreaker:
+        baseConfig: default
+      bookingCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 60
+      paymentCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 40
+      fleetCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 50
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+    instances:
+      globalCircuitBreaker:
+        baseConfig: default
+      bookingCircuitBreaker:
+        baseConfig: default
+      paymentCircuitBreaker:
+        baseConfig: default
+      fleetCircuitBreaker:
+        baseConfig: default
