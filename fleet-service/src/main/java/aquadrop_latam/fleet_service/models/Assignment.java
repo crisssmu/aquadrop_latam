@@ -27,8 +27,8 @@ public class Assignment {
     @JoinColumn(name = "driver_id", nullable = false)
     private Driver driver;
     
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "route_plan_id", nullable = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "route_plan_id", nullable = true)
     private RoutePlan routePlan;
     
     @Column(nullable = false)

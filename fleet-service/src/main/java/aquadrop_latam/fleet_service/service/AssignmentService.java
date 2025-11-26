@@ -170,6 +170,7 @@ public class AssignmentService {
             
             // Crear la asignación
             Assignment assignment = new Assignment();
+            assignment.setBookingId(String.valueOf(bookingId));
             assignment.setTanker(selectedTanker);
             assignment.setDriver(selectedDriver);
             assignment.setStatus(AssignmentStatus.PENDING);

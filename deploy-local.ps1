@@ -246,6 +246,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     status VARCHAR(50),
     price_estimate FLOAT,
     amount FLOAT,
+    payment_reference VARCHAR(255),
     address_id INTEGER REFERENCES addresses(id),
     priority_tag_id INTEGER REFERENCES priority_tag(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -264,6 +265,91 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aquadrop;
     
     # Ejecutar SQL para crear tablas en aquadrop_bookings
     $sqlBookingTables | docker exec -i aquadrop-postgres psql -U postgres -d aquadrop_bookings 2>&1 | Out-Null
+    
+    # Crear tablas y datos para fleet-service
+    $sqlFleetTables = @"
+-- Dar permisos en el schema public
+GRANT ALL ON SCHEMA public TO aquadrop;
+GRANT CREATE ON SCHEMA public TO aquadrop;
+ALTER SCHEMA public OWNER TO aquadrop;
+
+-- Habilitar extension uuid-ossp
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Crear tablas para fleet-service
+CREATE TABLE IF NOT EXISTS tankers (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    plate VARCHAR(20) NOT NULL UNIQUE,
+    capacity_liters BIGINT NOT NULL,
+    status VARCHAR(50) DEFAULT 'AVAILABLE',
+    current_latitude DOUBLE PRECISION,
+    current_longitude DOUBLE PRECISION,
+    last_location_update TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS drivers (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) UNIQUE,
+    keycloak_sub VARCHAR(100) UNIQUE,
+    license_number VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS route_plans (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    booking_id VARCHAR(100) NOT NULL,
+    tanker_id VARCHAR(36) REFERENCES tankers(id),
+    driver_id VARCHAR(36) REFERENCES drivers(id),
+    route_plan_id VARCHAR(36) REFERENCES route_plans(id),
+    status VARCHAR(50) DEFAULT 'PENDING',
+    eta TIMESTAMP,
+    accepted_at TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    failure_reason VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertar datos iniciales de tankers
+INSERT INTO tankers (id, plate, capacity_liters, status, current_latitude, current_longitude) 
+VALUES ('tanker-001', 'ABC-123', 5000, 'AVAILABLE', 19.4326, -99.1332)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO tankers (id, plate, capacity_liters, status, current_latitude, current_longitude) 
+VALUES ('tanker-002', 'DEF-456', 3000, 'AVAILABLE', 19.4000, -99.1500)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO tankers (id, plate, capacity_liters, status, current_latitude, current_longitude) 
+VALUES ('tanker-003', 'GHI-789', 4000, 'AVAILABLE', 19.4500, -99.1000)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insertar datos iniciales de drivers
+INSERT INTO drivers (id, name, phone, keycloak_sub, license_number) 
+VALUES ('driver-001', 'Juan Perez', '+1234567890', 'keycloak-001', 'LIC-001')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO drivers (id, name, phone, keycloak_sub, license_number) 
+VALUES ('driver-002', 'Maria Garcia', '+1234567891', 'keycloak-002', 'LIC-002')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO drivers (id, name, phone, keycloak_sub, license_number) 
+VALUES ('driver-003', 'Carlos Lopez', '+1234567892', 'keycloak-003', 'LIC-003')
+ON CONFLICT (id) DO NOTHING;
+
+-- Dar permisos sobre las tablas creadas
+GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aquadrop;
+"@
+    
+    # Ejecutar SQL para crear tablas en aquadrop_fleet
+    $sqlFleetTables | docker exec -i aquadrop-postgres psql -U postgres -d aquadrop_fleet 2>&1 | Out-Null
     
     Write-Step "✓ Bases de datos creadas" "success"
 }

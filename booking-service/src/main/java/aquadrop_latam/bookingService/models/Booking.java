@@ -7,7 +7,6 @@ import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,7 +15,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -35,7 +33,7 @@ public class Booking {
     @Column(name = "user_sub")
     private int userSub;
 
-    @ManyToOne(cascade = CascadeType.PERSIST)
+    @ManyToOne
     @JsonBackReference
     private Address address;
 
@@ -53,7 +51,10 @@ public class Booking {
     private Date createdAt;
     private Float amount;
     
-    @OneToOne(cascade = CascadeType.PERSIST)
+    @Column(name = "payment_reference")
+    private String paymentReference;
+    
+    @ManyToOne
     private PriorityTag priorityTag;
 
     @PrePersist

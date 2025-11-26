@@ -6,7 +6,9 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import aquadrop_latam.payment_service.dtos.PaymentIntentDto;
 import aquadrop_latam.payment_service.events.BookingRequestedEvent;
+import aquadrop_latam.payment_service.models.PaymentProvider;
 import aquadrop_latam.payment_service.service.PaymentService;
 
 @Component
@@ -23,12 +25,18 @@ public class BookingEventListener {
             event.bookingId(), event.volumeLiters(), event.zone(), event.fare());
         
         try {
-            // Crear PaymentIntent basado en el evento
-            paymentService.createPaymentIntentFromBookingEvent(event);
+            // 1. Crear PaymentIntent basado en el evento
+            PaymentIntentDto paymentIntent = paymentService.createPaymentIntentFromBookingEvent(event);
+            logger.info("✅ PaymentIntent creado: id={}", paymentIntent.getId());
             
-            logger.info("✅ PaymentIntent creado exitosamente para bookingId: {}", event.bookingId());
+            // 2. Autorizar automáticamente el pago (simula autorización exitosa)
+            // En producción esto iría a un gateway de pago real
+            paymentService.authorizePaymentFromIntent(paymentIntent.getId(), PaymentProvider.STRIPE);
+            logger.info("✅ Pago autorizado y evento PaymentAuthorized publicado para bookingId: {}", event.bookingId());
+            
         } catch (Exception e) {
             logger.error("❌ Error al procesar BookingRequested: {}", e.getMessage(), e);
+            // TODO: Publicar PaymentFailedEvent para compensación
         }
     }
 }

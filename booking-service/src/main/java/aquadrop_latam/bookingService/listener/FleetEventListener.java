@@ -23,7 +23,7 @@ public class FleetEventListener {
      * Escucha eventos de TankerAssignedEvent desde FleetService
      * Actualiza el estado del booking a CONFIRMED
      */
-    @RabbitListener(queues = "fleet.events.queue")
+    @RabbitListener(queues = "fleet.events.queue", containerFactory = "rabbitListenerContainerFactory")
     public void handleTankerAssigned(TankerAssignedEvent event) {
         logger.info("📨 Recibiendo TankerAssignedEvent para booking: {} - Tanker: {}, Driver: {}", 
                    event.bookingId(), event.tankerId(), event.driverId());

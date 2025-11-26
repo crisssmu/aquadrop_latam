@@ -18,73 +18,52 @@ scrape_configs:
   # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['host.docker.internal:9090']
-
-  # API Gateway
-  - job_name: 'api-gateway'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['host.docker.internal:8080']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'api-gateway'
+      - targets: ['localhost:9090']
 
   # Eureka Server
   - job_name: 'eureka-server'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8761']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'eureka'
+        labels:
+          service: 'eureka-server'
 
-  # Service discovery for booking-service
+  # API Gateway
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          service: 'api-gateway'
+
+  # Booking Service
   - job_name: 'booking-service'
     metrics_path: '/actuator/prometheus'
-    eureka_sd_configs:
-      - server: 'http://host.docker.internal:8761/eureka'
-    relabel_configs:
-      - source_labels: [__meta_eureka_app_name]
-        target_label: job
-      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
-        target_label: instance
+    static_configs:
+      - targets: ['host.docker.internal:8085']
+        labels:
+          service: 'booking-service'
 
-  # Service discovery for fleet-service
-  - job_name: 'fleet-service'
-    metrics_path: '/actuator/prometheus'
-    eureka_sd_configs:
-      - server: 'http://host.docker.internal:8761/eureka'
-    relabel_configs:
-      - source_labels: [__meta_eureka_app_name]
-        target_label: job
-      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
-        target_label: instance
-
-  # Service discovery for payment-service
+  # Payment Service
   - job_name: 'payment-service'
     metrics_path: '/actuator/prometheus'
-    eureka_sd_configs:
-      - server: 'http://host.docker.internal:8761/eureka'
-    relabel_configs:
-      - source_labels: [__meta_eureka_app_name]
-        target_label: job
-      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
-        target_label: instance
+    static_configs:
+      - targets: ['host.docker.internal:8082']
+        labels:
+          service: 'payment-service'
 
-  # Service discovery for notification-service
+  # Fleet Service
+  - job_name: 'fleet-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8083']
+        labels:
+          service: 'fleet-service'
+
+  # Notification Service (opcional - puede no estar activo)
   - job_name: 'notification-service'
     metrics_path: '/actuator/prometheus'
-    eureka_sd_configs:
-      - server: 'http://host.docker.internal:8761/eureka'
-    relabel_configs:
-      - source_labels: [__meta_eureka_app_name]
-        target_label: job
-      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
-        target_label: instance
-
-  # Node Exporter (si necesitas monitorear el host)
-  - job_name: 'node'
     static_configs:
-      - targets: ['host.docker.internal:9100']
+      - targets: ['host.docker.internal:8084']
+        labels:
+          service: 'notification-service'

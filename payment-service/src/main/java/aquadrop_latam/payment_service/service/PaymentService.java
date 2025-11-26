@@ -1,21 +1,29 @@
 package aquadrop_latam.payment_service.service;
 
-import aquadrop_latam.payment_service.models.*;
-import aquadrop_latam.payment_service.repository.*;
-import aquadrop_latam.payment_service.dtos.PaymentIntentDto;
-import aquadrop_latam.payment_service.dtos.ChargeDto;
-import aquadrop_latam.payment_service.events.BookingRequestedEvent;
-import aquadrop_latam.payment_service.events.PaymentAuthorizedEvent;
-import aquadrop_latam.payment_service.events.RefundIssuedEvent;
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.math.BigDecimal;
-import java.util.UUID;
-import java.util.Optional;
+
+import aquadrop_latam.payment_service.commands.RequestBookingCommand;
+import aquadrop_latam.payment_service.dtos.ChargeDto;
+import aquadrop_latam.payment_service.dtos.PaymentIntentDto;
+import aquadrop_latam.payment_service.events.BookingRequestedEvent;
+import aquadrop_latam.payment_service.events.PaymentAuthorizedEvent;
+import aquadrop_latam.payment_service.events.RefundIssuedEvent;
+import aquadrop_latam.payment_service.models.Charge;
+import aquadrop_latam.payment_service.models.PaymentIntent;
+import aquadrop_latam.payment_service.models.PaymentProvider;
+import aquadrop_latam.payment_service.models.PaymentStatus;
+import aquadrop_latam.payment_service.repository.ChargeRepository;
+import aquadrop_latam.payment_service.repository.PaymentIntentRepository;
+import aquadrop_latam.payment_service.repository.SubsidyRepository;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +75,27 @@ public class PaymentService {
     }
 
     @Transactional
+    public PaymentIntentDto createPaymentIntentFromCommand(RequestBookingCommand command) {
+        logger.info("💳 Creando PaymentIntent desde RequestBookingCommand para bookingId: {}", command.bookingId());
+        
+        PaymentIntent intent = PaymentIntent.builder()
+            .id(UUID.randomUUID().toString())
+            .bookingId(String.valueOf(command.bookingId()))
+            .customerId(String.valueOf(command.userSub()))
+            .amount(BigDecimal.valueOf(command.fare() != null ? command.fare() : 0f))
+            .currency("USD")
+            .zone(command.zone())
+            .description("Pago por entrega de " + command.volumeLiters() + "L en zona " + command.zone())
+            .status(PaymentStatus.PENDING)
+            .build();
+        
+        PaymentIntent saved = paymentIntentRepository.save(intent);
+        logger.info("✅ PaymentIntent creado desde comando: id={}, amount={}", saved.getId(), saved.getAmount());
+        
+        return mapToPaymentIntentDto(saved);
+    }
+
+    @Transactional
     public PaymentAuthorizedEvent authorizePaymentFromIntent(String paymentIntentId, PaymentProvider provider) {
         logger.info("🔐 Autorizando pago para PaymentIntent: {}", paymentIntentId);
         
@@ -94,9 +123,9 @@ public class PaymentService {
         
         // Crear evento de pago autorizado
         PaymentAuthorizedEvent event = new PaymentAuthorizedEvent(
-            Integer.parseInt(saved.getId()),
+            saved.getId(),
             Integer.parseInt(intent.getBookingId()),
-            Integer.parseInt(intent.getId()),
+            intent.getId(),
             "AUTHORIZED"
         );
         

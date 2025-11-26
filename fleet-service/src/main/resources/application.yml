@@ -24,6 +24,11 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 eureka:
   client:
@@ -56,16 +61,18 @@ management:
   metrics:
     distribution:
       percentiles-histogram:
-        http.server.requests: true
+        '[http.server.requests]': true
   tracing:
     sampling:
       probability: 1.0
+    propagation:
+      type: w3c
 
 logging:
   level:
     root: INFO
-    aquadrop_latam: DEBUG
-    org.springframework.web: INFO
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    '[aquadrop_latam]': DEBUG
+    '[org.springframework.web]': INFO
+    '[org.springframework.security]': DEBUG
+    '[org.hibernate.SQL]': DEBUG
+    '[org.hibernate.type.descriptor.sql.BasicBinder]': TRACE

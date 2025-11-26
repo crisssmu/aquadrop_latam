@@ -2,7 +2,6 @@ package aquadrop_latam.bookingService.service;
 
 import java.util.List;
 
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +12,6 @@ import aquadrop_latam.bookingService.events.BookingCancelledEvent;
 import aquadrop_latam.bookingService.events.BookingConfirmedEvent;
 import aquadrop_latam.bookingService.events.BookingRequestedEvent;
 import aquadrop_latam.bookingService.events.DeliveryCompletedEvent;
-import aquadrop_latam.bookingService.events.PaymentFailedEvent;
 import aquadrop_latam.bookingService.models.Address;
 import aquadrop_latam.bookingService.models.Booking;
 import aquadrop_latam.bookingService.models.BookingStatus;
@@ -144,32 +142,40 @@ public class BookingService {
         return saved;
     }
 
-    @RabbitListener(queues = "payment.events.queue")
-    public void handlePaymentFailed(PaymentFailedEvent event) {
-        cancelBooking(event.bookingId(), "PAYMENT_FAILED", BookingCancelledEvent.REFUND_REQUESTED);
+    /**
+     * Llamado cuando el pago fue autorizado
+     * Envía comando al FleetService para asignar tanker
+     */
+    @Transactional
+    public void onPaymentAuthorized(int bookingId, String paymentId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + bookingId));
+        
+        // Actualizar el booking con la referencia del pago
+        booking.setPaymentReference(paymentId);
+        bookingRepository.save(booking);
+        
+        // Enviar comando al FleetService para asignar tanker
+        ConfirmeBookingCommand command = new ConfirmeBookingCommand(bookingId);
+        commandService.sendConfirmeBooking(command);
     }
- 
 
     @Transactional
-    public Booking confirmBooking(int bookingId, String paymentId) {
+    public Booking confirmBooking(int bookingId, String assignmentId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         booking.setStatus(BookingStatus.CONFIRMED);
         Booking saved = bookingRepository.save(booking);
 
-        // Emitir evento BookingConfirmed basado en paymentAuthorized según diagrama
+        // Emitir evento BookingConfirmed - el tanker ya fue asignado
         BookingConfirmedEvent confirmedEvent = new BookingConfirmedEvent(
                 bookingId,
                 booking.getAmount(),
-                paymentId,
+                assignmentId,
                 booking.getStatus().name()
         );
         commandService.publishBookingEvent(confirmedEvent);
-
-        // Enviar comando al FleetService para asignar tanker
-        ConfirmeBookingCommand command = new ConfirmeBookingCommand(bookingId);
-        commandService.sendConfirmeBooking(command);
 
         return saved;
     }

@@ -3,9 +3,9 @@ package aquadrop_latam.fleet_service.events;
 import java.io.Serializable;
 
 public record PaymentAuthorizedEvent(
-    Integer paymentId,
+    String paymentId,
     Integer bookingId,
-    Integer intentId,
+    String intentId,
     String status
 ) implements Serializable {
     

@@ -17,6 +17,12 @@ spring:
     password: aquadrop
     driver-class-name: org.postgresql.Driver
   
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  
   cloud:
     config:
       enabled: false
@@ -50,10 +56,12 @@ management:
   metrics:
     distribution:
       percentiles-histogram:
-        http.server.requests: true
+        '[http.server.requests]': true
   tracing:
     sampling:
       probability: 1.0
+    propagation:
+      type: w3c
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans

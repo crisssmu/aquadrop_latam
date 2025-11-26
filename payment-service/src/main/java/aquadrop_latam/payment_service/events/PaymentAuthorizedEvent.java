@@ -1,8 +1,12 @@
 package aquadrop_latam.payment_service.events;
 
+import java.io.Serializable;
+
 public record PaymentAuthorizedEvent(
-    int paymentId,
+    String paymentId,
     int bookingId,
-    int intentId,
+    String intentId,
     String status
-) {}
+) implements Serializable {
+    private static final long serialVersionUID = 1L;
+}

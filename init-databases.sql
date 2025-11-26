@@ -96,6 +96,63 @@ GRANT ALL ON SCHEMA public TO aquadrop;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
 GRANT CREATE ON SCHEMA public TO aquadrop;
 
+-- Crear tablas para payment-service
+CREATE TABLE IF NOT EXISTS payment_intents (
+    id VARCHAR(255) PRIMARY KEY,
+    booking_id VARCHAR(255) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    zone VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    customer_id VARCHAR(255),
+    idempotency_key VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS charges (
+    id VARCHAR(255) PRIMARY KEY,
+    payment_intent_id VARCHAR(255) NOT NULL REFERENCES payment_intents(id),
+    provider VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    provider_reference VARCHAR(255) NOT NULL,
+    authorized_at TIMESTAMP,
+    captured_at TIMESTAMP,
+    authorized_amount DECIMAL(10,2) NOT NULL,
+    captured_amount DECIMAL(10,2),
+    failure_reason VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS subsidies (
+    id VARCHAR(255) PRIMARY KEY,
+    zone VARCHAR(100) NOT NULL,
+    rule VARCHAR(50) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    is_percentage BOOLEAN NOT NULL DEFAULT FALSE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    description VARCHAR(500),
+    max_uses INTEGER,
+    uses_count INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS refunds (
+    id VARCHAR(255) PRIMARY KEY,
+    charge_id VARCHAR(255) NOT NULL REFERENCES charges(id),
+    amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    reason VARCHAR(500),
+    provider_reference VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Dar permisos sobre las tablas creadas
+GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aquadrop;
+
 \c aquadrop_fleet
 CREATE SCHEMA IF NOT EXISTS public;
 ALTER SCHEMA public OWNER TO aquadrop;

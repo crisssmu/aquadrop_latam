@@ -49,7 +49,7 @@ public class SlotService {
         return slotRepository.findAll();
     }
 
-    @RabbitListener(queues = "fleet.events.queue")
+    @RabbitListener(queues = "fleet.events.queue", containerFactory = "rabbitListenerContainerFactory")
     public void handleFleetEvents(TankerAssignedEvent eventData) {
         // TankerAssignedEvent contiene: bookingId, tankerId, driverId, assignmentId, eta, status
         if(eventData != null && eventData.status() != null && eventData.status().equals("ASSIGNED")) {
