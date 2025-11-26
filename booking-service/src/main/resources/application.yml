@@ -12,7 +12,7 @@ spring:
       connection-timeout: 30000
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -24,6 +24,16 @@ spring:
     port: 5672
     username: guest
     password: guest
+
+logging:
+  level:
+    root: INFO
+    '[aquadrop_latam]': DEBUG
+  file:
+    name: booking-service.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 server:
   port: 8085

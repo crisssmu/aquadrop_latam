@@ -53,6 +53,42 @@ GRANT ALL ON SCHEMA public TO aquadrop;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
 GRANT CREATE ON SCHEMA public TO aquadrop;
 
+-- Crear tablas para booking-service
+CREATE TABLE IF NOT EXISTS priority_tag (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    score INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS addresses (
+    id SERIAL PRIMARY KEY,
+    address VARCHAR(255),
+    zone VARCHAR(100),
+    user_sub VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+    id SERIAL PRIMARY KEY,
+    user_sub INTEGER,
+    volume_liters FLOAT,
+    status VARCHAR(50),
+    price_estimate FLOAT,
+    amount FLOAT,
+    address_id INTEGER REFERENCES addresses(id),
+    priority_tag_id INTEGER REFERENCES priority_tag(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertar datos iniciales de priority_tag
+INSERT INTO priority_tag (id, type, score) VALUES (1, 'DEFAULT', 1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (2, 'HOSPITAL', 3) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (3, 'ESCUELA', 2) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (4, 'VULNERABLE', 4) ON CONFLICT (id) DO NOTHING;
+
+-- Dar permisos sobre las tablas creadas
+GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aquadrop;
+
 \c aquadrop_payments
 CREATE SCHEMA IF NOT EXISTS public;
 ALTER SCHEMA public OWNER TO aquadrop;

@@ -202,8 +202,8 @@ function Initialize-Databases {
         return
     }
     
-    # Crear bases de datos
-    $sql = @"
+    # Crear bases de datos y usuario
+    $sqlCreateDbs = @"
 CREATE DATABASE aquadrop_bookings;
 CREATE DATABASE aquadrop_payments;
 CREATE DATABASE aquadrop_fleet;
@@ -215,8 +215,55 @@ GRANT ALL PRIVILEGES ON DATABASE aquadrop_fleet TO aquadrop;
 GRANT ALL PRIVILEGES ON DATABASE aquadrop_notifications TO aquadrop;
 "@
     
-    # Ejecutar SQL en el contenedor
-    $sql | docker exec -i aquadrop-postgres psql -U postgres 2>&1 | Select-String "CREATE|ERROR" | Where-Object { $_ -notmatch "already exists" }
+    # Ejecutar SQL para crear bases de datos
+    $sqlCreateDbs | docker exec -i aquadrop-postgres psql -U postgres 2>&1 | Select-String "CREATE|ERROR" | Where-Object { $_ -notmatch "already exists" }
+    
+    # Crear tablas y datos para booking-service
+    $sqlBookingTables = @"
+-- Dar permisos en el schema public
+GRANT ALL ON SCHEMA public TO aquadrop;
+GRANT CREATE ON SCHEMA public TO aquadrop;
+ALTER SCHEMA public OWNER TO aquadrop;
+
+-- Crear tablas para booking-service
+CREATE TABLE IF NOT EXISTS priority_tag (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    score INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS addresses (
+    id SERIAL PRIMARY KEY,
+    address VARCHAR(255),
+    zone VARCHAR(100),
+    user_sub VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+    id SERIAL PRIMARY KEY,
+    user_sub INTEGER,
+    volume_liters FLOAT,
+    status VARCHAR(50),
+    price_estimate FLOAT,
+    amount FLOAT,
+    address_id INTEGER REFERENCES addresses(id),
+    priority_tag_id INTEGER REFERENCES priority_tag(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertar datos iniciales de priority_tag
+INSERT INTO priority_tag (id, type, score) VALUES (1, 'DEFAULT', 1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (2, 'HOSPITAL', 3) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (3, 'ESCUELA', 2) ON CONFLICT (id) DO NOTHING;
+INSERT INTO priority_tag (id, type, score) VALUES (4, 'VULNERABLE', 4) ON CONFLICT (id) DO NOTHING;
+
+-- Dar permisos sobre las tablas creadas
+GRANT ALL ON ALL TABLES IN SCHEMA public TO aquadrop;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aquadrop;
+"@
+    
+    # Ejecutar SQL para crear tablas en aquadrop_bookings
+    $sqlBookingTables | docker exec -i aquadrop-postgres psql -U postgres -d aquadrop_bookings 2>&1 | Out-Null
     
     Write-Step "✓ Bases de datos creadas" "success"
 }

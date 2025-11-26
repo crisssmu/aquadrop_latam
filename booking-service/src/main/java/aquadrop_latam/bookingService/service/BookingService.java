@@ -73,7 +73,12 @@ public class BookingService {
                 saved.getAmount(),
                 saved.getStatus().name()
         );
-        commandService.publishBookingEvent(bookingRequestedEvent);
+        try {
+            commandService.publishBookingEvent(bookingRequestedEvent);
+        } catch (Exception e) {
+            System.err.println("Error al publicar evento en RabbitMQ: " + e.getMessage());
+            throw new RuntimeException("RabbitMQ no disponible", e);
+        }
 
         // Enviar comando Saga -> PaymentService
         RequestBookingCommand command = new RequestBookingCommand(

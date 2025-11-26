@@ -60,7 +60,7 @@ spring:
             - Path=/api/bookings/**
             - Method=GET,POST,PUT,DELETE
           filters:
-            - StripPrefix=2
+            - StripPrefix=1
             - AddResponseHeader=X-Service,booking-service
             - name: RequestRateLimiter
               args:

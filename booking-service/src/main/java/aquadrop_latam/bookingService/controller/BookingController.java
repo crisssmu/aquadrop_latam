@@ -19,7 +19,7 @@ import aquadrop_latam.bookingService.service.BookingService;
 
 
 @RestController
-@RequestMapping("/api/bookings")
+@RequestMapping("/bookings")
 public class BookingController {
 
     @Autowired

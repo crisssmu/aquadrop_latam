@@ -86,6 +86,8 @@ function Test-HappyPath {
         latitude = 4.7110
         longitude = -74.0055
         volumeLiters = 50
+        userSub = 1
+        priorityTag = 1
     } | ConvertTo-Json
     
     try {
@@ -139,6 +141,8 @@ function Test-Compensation {
         latitude = 6.2442
         longitude = -75.5812
         volumeLiters = 200
+        userSub = 2
+        priorityTag = 2
     } | ConvertTo-Json
     
     try {
