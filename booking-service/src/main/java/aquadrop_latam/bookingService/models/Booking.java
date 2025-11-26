@@ -2,6 +2,9 @@ package aquadrop_latam.bookingService.models;
 
 import java.util.Date;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.persistence.CascadeType;
@@ -13,7 +16,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -26,7 +29,7 @@ import lombok.Setter;
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @Column(name = "user_sub")
@@ -43,14 +46,14 @@ public class Booking {
     private Float priceEstimate;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private BookingStatus status;
 
     @Column(name = "created_at")
     private Date createdAt;
     private Float amount;
     
-    @OneToMany(mappedBy = "booking_id")
-    @Column(name = "priority_tag")
+    @OneToOne(cascade = CascadeType.PERSIST)
     private PriorityTag priorityTag;
 
     @PrePersist

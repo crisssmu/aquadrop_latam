@@ -11,4 +11,5 @@ public record BookingCancelledEvent(int bookingId, String reasosn, String cancel
     public static final String CANCEL_BOOKING = "PROCESSING_CANCELLED";
     public static final String REFUND_REQUESTED = "REFUND_REQUESTED";
     public static final String TANKER_REJECTED = "TANKER_REJECTED";
+    public static final String REFUND_ISSUED = "REFUND_ISSUED";
 }

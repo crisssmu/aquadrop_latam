@@ -19,13 +19,13 @@ import aquadrop_latam.bookingService.service.BookingService;
 
 
 @RestController
-@RequestMapping("/bookings")
+@RequestMapping("/api/bookings")
 public class BookingController {
 
     @Autowired
     private BookingService bookingService;
 
-    @PostMapping("/create")
+    @PostMapping
     public ResponseEntity<Booking> createBooking(@RequestBody BookingDto booking) {
 
         Booking created = bookingService.createBooking(booking);
@@ -34,7 +34,7 @@ public class BookingController {
             return ResponseEntity.badRequest().build();
         }
         
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping("/")

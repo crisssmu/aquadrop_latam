@@ -1,0 +1,261 @@
+groups:
+  - name: AquaDrop Alerts
+    interval: 30s
+    rules:
+      # ===================== SERVICE AVAILABILITY =====================
+      - alert: ServiceDown
+        expr: up{job=~"api-gateway|eureka-server|booking-service|fleet-service|payment-service|notification-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "🔴 {{ $labels.job }} está DOWN"
+          description: "El servicio {{ $labels.job }} no responde desde hace 2 minutos"
+          dashboard: "http://localhost:3000/d/aquadrop-dashboard"
+
+      # ===================== PERFORMANCE =====================
+      - alert: HighResponseLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job="api-gateway"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "⚠️ Latencia alta en API Gateway (P95 > 1s)"
+          description: "La latencia P95 es {{ $value | humanize }}s"
+          runbook: "https://wiki.aquadrop.local/runbooks/high-latency"
+
+      - alert: PercentileLatencyP99
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Latencia P99 muy alta ({{ $value | humanize }}s)"
+          description: "99% de requests tardan más de {{ $value | humanize }}s"
+
+      # ===================== ERROR RATES =====================
+      - alert: HighErrorRate
+        expr: (rate(http_server_requests_seconds_count{status=~"5.."}[5m]) / rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "⚠️ Tasa de error alta en {{ $labels.job }} (>5%)"
+          description: "Error rate: {{ $value | humanizePrecent }}"
+          dashboard: "http://localhost:3000/d/aquadrop-dashboard?var-job={{ $labels.job }}"
+
+      - alert: CriticalErrorRate
+        expr: (rate(http_server_requests_seconds_count{status=~"5.."}[5m]) / rate(http_server_requests_seconds_count[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "🔴 TASA DE ERROR CRÍTICA en {{ $labels.job }} (>10%)"
+          description: "Error rate: {{ $value | humanizePercent }}"
+          action: "Escalar a on-call engineer"
+
+      # ===================== RESOURCE EXHAUSTION =====================
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "⚠️ Uso de memoria heap alto en {{ $labels.job }} (>85%)"
+          description: "Heap usage: {{ $value | humanizePercent }}"
+          action: "Considerar aumentar heap size o investigar memory leaks"
+
+      - alert: CriticalMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "🔴 MEMORIA CRÍTICA en {{ $labels.job }} (>95%)"
+          description: "OOM puede ocurrir inmediatamente"
+          action: "Escalar - posible reinicio requerido"
+
+      # ===================== CIRCUITBREAKER =====================
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Circuit Breaker ABIERTO: {{ $labels.name }}"
+          description: "El circuit breaker {{ $labels.name }} está en estado OPEN"
+          dashboard: "http://localhost:3000/d/aquadrop-dashboard"
+
+      # ===================== RATE LIMITING =====================
+      - alert: HighRateLimitRejections
+        expr: rate(spring_cloud_gateway_requests_seconds_count{outcome="rejected"}[5m]) > 10
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Muchos requests rechazados por rate limiting (>10/s)"
+          description: "Rate: {{ $value | humanize }} req/s rechazados"
+          possible_cause: "DDoS attack o surge de tráfico legítimo"
+
+      # ===================== QUOTA POLICY =====================
+      - alert: HighQuotaViolations
+        expr: rate(quota_exceeded_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: info
+        annotations:
+          summary: "ℹ️ Muchas violaciones de cuota (>5/s)"
+          description: "Usuarios excediendo daily booking quota"
+
+      # ===================== IDEMPOTENCY =====================
+      - alert: HighIdempotencyDuplicates
+        expr: rate(idempotency_duplicates_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "ℹ️ Muchas duplicaciones detectadas (>20/s)"
+          description: "Posible issue de red o retry loops"
+
+      # ===================== GEO-FENCE VIOLATIONS =====================
+      - alert: GeoFenceViolations
+        expr: rate(geofence_violations_total[5m]) > 2
+        for: 3m
+        labels:
+          severity: info
+        annotations:
+          summary: "ℹ️ Intentos de booking fuera de zona (>2/s)"
+          description: "Usuarios intentando ordenar fuera de áreas permitidas"
+
+      # ===================== REDIS =====================
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "🔴 REDIS DOWN"
+          description: "Redis no responde - rate limiting, cache y idempotency afectados"
+          action: "Reiniciar Redis inmediatamente"
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "⚠️ Uso de memoria Redis alto (>80%)"
+          description: "Memory usage: {{ $value | humanizePercent }}"
+          action: "Investigar claves grandes o expiración insuficiente"
+
+      # ===================== EUREKA =====================
+      - alert: EurekaHighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job="eureka-server"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: eureka
+        annotations:
+          summary: "⚠️ Eureka respondiendo lento (P95 > 2s)"
+          description: "Latencia P95: {{ $value | humanize }}s"
+          impact: "Descubrimiento de servicios ralentizado"
+
+      - alert: EurekaServicesNotRegistering
+        expr: rate(eureka_server_exception_total[5m]) > 1
+        for: 3m
+        labels:
+          severity: warning
+          service: eureka
+        annotations:
+          summary: "⚠️ Servicios con problemas de registro en Eureka"
+          description: "Exception rate: {{ $value | humanize }} ex/s"
+
+      # ===================== PROMETHEUS & MONITORING =====================
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: prometheus
+        annotations:
+          summary: "🔴 PROMETHEUS DOWN"
+          description: "Sistema de monitoreo no disponible"
+
+      - alert: PrometheusHighMemory
+        expr: process_resident_memory_bytes{job="prometheus"} > 1073741824  # 1GB
+        for: 5m
+        labels:
+          severity: warning
+          service: prometheus
+        annotations:
+          summary: "⚠️ Prometheus usando mucha memoria (>1GB)"
+          description: "Memory: {{ $value | humanize }}B"
+          action: "Aumentar retention o agent memory"
+
+      # ===================== ZIPKIN =====================
+      - alert: ZipkinDown
+        expr: up{job="zipkin"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: zipkin
+        annotations:
+          summary: "⚠️ Zipkin DOWN (tracing no disponible)"
+          description: "Distributed tracing está offline"
+          impact: "No hay visibilidad de traces distribuidos"
+
+      # ===================== GATEWAY-SPECIFIC =====================
+      - alert: GatewayFilterLatency
+        expr: histogram_quantile(0.95, rate(gateway_filter_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: filter
+        annotations:
+          summary: "⚠️ Filtro del gateway lento: {{ $labels.filter }}"
+          description: "Latencia: {{ $value | humanize }}s"
+          likely_culprit: "GeoFence o validation filter"
+
+      - alert: GatewayRoutingErrors
+        expr: rate(gateway_routes_total{status=~"5.."}[5m]) > 1
+        for: 3m
+        labels:
+          severity: warning
+          component: routing
+        annotations:
+          summary: "⚠️ Errores en routing del gateway"
+          description: "Route: {{ $labels.route }} - Rate: {{ $value | humanize }} err/s"
+
+      # ===================== SLO ALERTS =====================
+      - alert: SLO_AvailabilityBudget_Exhausted
+        expr: |
+          (1 - (rate(http_server_requests_seconds_count{status=~"5.."}[30d]) / 
+                rate(http_server_requests_seconds_count[30d]))) < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability_99
+        annotations:
+          summary: "🔴 SLO ERROR BUDGET EXHAUSTED"
+          description: "Availability SLO (99%) por debajo de límite"
+          action: "Detener deploys y enfocarse en estabilidad"
+
+      - alert: SLO_Latency_Budget_Low
+        expr: |
+          (count(histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) < 0.5) /
+           count(histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])))) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency_p95_500ms
+        annotations:
+          summary: "⚠️ SLO Latency Budget por debajo de 50%"
+          description: "P95 latency SLO (500ms) en riesgo"

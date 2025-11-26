@@ -1,0 +1,4 @@
+127.0.0.1 api.aquadrop.latam
+127.0.0.1 notify.aquadrop.latam
+127.0.0.1 www.aquadrop.latam
+127.0.0.1 aquadrop.latam

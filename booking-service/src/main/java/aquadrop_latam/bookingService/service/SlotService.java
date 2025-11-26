@@ -50,9 +50,11 @@ public class SlotService {
     }
 
     @RabbitListener(queues = "fleet.events.queue")
-    public void handleFleetEvents(TankerAssignedEvent eventData, SlotDto slotDto) {
-        if(eventData.success()){
-            assignedSlot(slotDto);
+    public void handleFleetEvents(TankerAssignedEvent eventData) {
+        // TankerAssignedEvent contiene: bookingId, tankerId, driverId, assignmentId, eta, status
+        if(eventData != null && eventData.status() != null && eventData.status().equals("ASSIGNED")) {
+            // El evento fue exitoso, la asignación se realizó correctamente
+            // Aquí se podrían actualizar los slots si es necesario
         } 
     }
 

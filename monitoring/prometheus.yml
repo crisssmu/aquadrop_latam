@@ -1,0 +1,90 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  external_labels:
+    monitor: 'AquaDrop-Monitor'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - 'alerts.yml'
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:9090']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'api-gateway'
+
+  # Eureka Server
+  - job_name: 'eureka-server'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8761']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'eureka'
+
+  # Service discovery for booking-service
+  - job_name: 'booking-service'
+    metrics_path: '/actuator/prometheus'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka'
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
+        target_label: instance
+
+  # Service discovery for fleet-service
+  - job_name: 'fleet-service'
+    metrics_path: '/actuator/prometheus'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka'
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
+        target_label: instance
+
+  # Service discovery for payment-service
+  - job_name: 'payment-service'
+    metrics_path: '/actuator/prometheus'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka'
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
+        target_label: instance
+
+  # Service discovery for notification-service
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka'
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+      - source_labels: [__meta_eureka_app_instance_metadata_hostname]
+        target_label: instance
+
+  # Node Exporter (si necesitas monitorear el host)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['host.docker.internal:9100']

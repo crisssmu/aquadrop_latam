@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: payment-service
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aquadrop_payments
+    username: aquadrop
+    password: aquadrop
+    driver-class-name: org.postgresql.Driver
+  
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      client:
+        health-indicator:
+          enabled: false
+    consul:
+      enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    hostname: localhost
+    instance-id: payment-service:${random.value}
+    health-check-url: http://localhost:8082/actuator/health
+    prefer-ip-address: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+server:
+  port: 8082
+  servlet:
+    context-path: /
+  tomcat:
+    max-http-form-post-size: 10MB
+    threads:
+      max: 200
+      min-spare: 10
+
+logging:
+  level:
+    root: INFO
+    aquadrop_latam.payment_service: DEBUG
+    aquadrop_latam: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

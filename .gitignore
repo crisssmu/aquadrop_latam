@@ -1,0 +1,322 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+.gradletasknamecache
+!gradle-wrapper.jar
+.gradle
+
+# IDE - IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+*.swp
+*.swo
+*~
+.classpath
+.c9/
+*.launch
+.settingings/
+
+# IDE - Eclipse
+.classpath
+.project
+.pydevproject
+.settings/
+.texlipse
+.sts4-cache/
+
+# IDE - VS Code
+.vscode/
+.vscode-test
+.history/
+*.vsix
+
+# IDE - Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Visual Studio Code
+.vs/
+.vscode/
+launch.json
+settings.json
+tasks.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Spring Boot
+application-*.properties
+application-*.yml
+application-local.properties
+application-local.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+database/
+data/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+.~*
+
+# Docker volumes (optional, if you want to keep them in repo)
+# postgres_data/
+# redis_data/
+# rabbitmq_data/
+# grafana_data/
+# prometheus_data/
+
+# Node (if using npm for frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Python (if applicable)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+.env
+
+# Compiled files
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Build artifacts
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+.mvn/timing.properties
+.mvn/timing.properties.lock
+
+# SonarQube
+.sonarqube/
+.sonar/
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+.nyc_output
+dist/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.gradle/
+build/
+
+# Local environment variables
+.env
+.env.local
+.env.*.local
+
+# Kubernetes
+kubeconfig
+kubeconfig.yaml
+
+# OpenShift
+.openshift/
+
+# AWS
+.aws/credentials
+.aws/config
+
+# GCP
+.gcp/
+
+# Azure
+.azure/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible
+.ansible_vault
+
+# Jenkins
+.jenkinsfile.local
+
+# GitLab CI
+.gitlab-ci.local.yml
+
+# GitHub Actions
+.github/workflows/local-*.yml
+
+# Cache files
+.cache/
+cache/
+
+# Process files
+*.pid
+*.pid.lock
+.pidfile
+
+# Certificates and Keys (NEVER COMMIT THESE)
+*.pem
+*.key
+*.crt
+*.cert
+*.pfx
+*.jks
+*.p12
+*.keystore
+
+# API Keys and Secrets (NEVER COMMIT THESE)
+.secret
+secrets/
+.secrets
+*.secret
+.env.secrets
+config/secrets/
+
+# Performance and profiling
+*.jfr
+*.hprof
+*.prof
+*.perf
+
+# Checkstyle
+checkstyle-result.xml
+
+# FindBugs
+findbugsXml.xml
+annotations.xml
+
+# PMD
+pmd.xml
+cpd.xml
+
+# OWASP Dependency Check
+dependency-check-report.html
+dependency-check-report.xml
+dependency-check-report.json
+
+# Architecture Decision Records (if not in repo)
+docs/adr/*.md
+!docs/adr/template.md
+
+# Backup files
+*.backup
+*.bkp
+*.orig
+
+# Vim
+.vim/
+.viminfo
+.netrwhist
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt][a-z]
+*.un~
+
+# Emacs
+*~
+\#*\#
+.\#*
+.#*
+*.elc
+auto-save-list/
+tramp
+.\#*
+
+# Nano
+.nano_history
+
+# Root files (documentation only)
+!.gitkeep
+!.gitattributes
+!.editorconfig
+!.prettierignore
+
+# Maven Wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Arquivos de compilação local
+*.exe
+*.com
+*.bat
+*.cmd
+*.sh
+!mvnw
+!mvnw.cmd
+!*.sh
+
+# Específico para aquadrop_latam
+aquadrop_latam_*.log
+aquadrop_*.pid
+.aquadrop/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Kubernetes local
+k8s/local/
+
+# Local development
+.localdev
+local.properties

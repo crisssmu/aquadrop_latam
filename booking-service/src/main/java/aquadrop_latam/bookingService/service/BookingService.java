@@ -42,7 +42,7 @@ public class BookingService {
     @SuppressWarnings("null")
     public Booking createBooking(BookingDto dto) {
         Booking booking = new Booking();
-        booking.setUserSub(dto.userSub);
+        booking.setUserSub(dto.userSub != null ? dto.userSub : 0);
         booking.setVolumeLiters(dto.volumeLiters);
         booking.setStatus(BookingStatus.PENDING);
 
@@ -51,8 +51,9 @@ public class BookingService {
 
         booking.setPriorityTag(priorityTag);
     
-        Float priceEstimate = booking.calculePrice();
-        booking.setPriceEstimate(dto.priceEstimate);
+        Float priceEstimate = dto.priceEstimate != null ? dto.priceEstimate : 0f;
+        priceEstimate += booking.getVolumeLiters() != null ? booking.getVolumeLiters() * 1.2f : 0;
+        booking.setPriceEstimate(priceEstimate);
         booking.setAmount(priceEstimate);
 
         Address address = new Address();
@@ -67,6 +68,8 @@ public class BookingService {
         BookingRequestedEvent bookingRequestedEvent = new BookingRequestedEvent(
                 saved.getId(),
                 saved.getUserSub(),
+                saved.getVolumeLiters(),
+                saved.getAddress().getZone(),
                 saved.getAmount(),
                 saved.getStatus().name()
         );
@@ -75,6 +78,9 @@ public class BookingService {
         // Enviar comando Saga -> PaymentService
         RequestBookingCommand command = new RequestBookingCommand(
                 saved.getId(),
+                saved.getUserSub(),
+                saved.getVolumeLiters(),
+                saved.getAddress().getZone(),
                 saved.getAmount(),
                 saved.getStatus().name()
         );

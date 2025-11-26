@@ -1,0 +1,246 @@
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  webflux:
+    base-path: /
+  
+  cloud:
+    config:
+      enabled: false
+    gateway:
+      default-filters:
+        # Token Relay para propagar OIDC token (DISABLED)
+        # - name: TokenRelay
+        # Headers globales (DISABLED)
+        # - AddRequestHeader=X-Platform,AquaDrop
+        # - AddRequestHeader=X-Request-Start,${spring.cloud.client.hostname}
+        # Generar Correlation ID (custom filter) (DISABLED)
+        # - name: CustomCorrelation
+        # Rate Limiter Global
+        - name: RequestRateLimiter
+          args:
+            '[redis-rate-limiter.replenish-rate]': 8
+            '[redis-rate-limiter.burst-capacity]': 20
+            key-resolver: "#{@userIdKeyResolver}"
+        # Circuit Breaker (DISABLED)
+        # - name: CircuitBreaker
+        #   args:
+        #     name: gateway-breaker
+        #     fallbackUri: forward:/fallback
+        # Retry
+        - name: Retry
+          args:
+            retries: 3
+            methods: GET,HEAD
+            series: SERVER_ERROR
+            exceptions: java.io.IOException,java.util.concurrent.TimeoutException
+            backoff:
+              firstBackoff: 50ms
+              maxBackoff: 1600ms
+              factor: 2
+        # Request Size Limit (3MB)
+        - name: RequestSize
+          args:
+            maxSize: 3145728
+        # Remove sensitive headers
+        - name: RemoveRequestHeader
+          args:
+            name: Cookie
+        - name: RemoveRequestHeader
+          args:
+            name: Set-Cookie
+      
+      routes:
+        # ==================== BOOKING SERVICE ====================
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/bookings/**
+            - Method=GET,POST,PUT,DELETE
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,booking-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenish-rate: 8
+                redis-rate-limiter.burst-capacity: 20
+                key-resolver: "#{@userIdKeyResolver}"
+            - QuotaPolicy
+            - IdempotencyKey
+            - GeoFence
+        
+        # Booking Service v2 (Canary)
+        - id: booking-service-v2
+          uri: lb://booking-service-v2
+          predicates:
+            - Path=/api/bookings/**
+            - Method=GET,POST,PUT,DELETE
+            - Header=X-Canary,true
+            - Host=api.aquadrop.latam
+            - Weight=booking,10
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,booking-service-v2
+            - AddResponseHeader=X-Canary,true
+            - name: CanaryRouter
+
+        # ==================== FLEET SERVICE ====================
+        - id: fleet-service
+          uri: lb://fleet-service
+          predicates:
+            - Path=/api/fleet/**
+            - Method=GET,POST,PUT,DELETE
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,fleet-service
+            - name: RequestRateLimiter
+              args:
+                '[redis-rate-limiter.replenish-rate]': 20
+                '[redis-rate-limiter.burst-capacity]': 50
+                key-resolver: "#{@dispatcherKeyResolver}"
+        
+        # Fleet Service v2 (Canary)
+        - id: fleet-service-v2
+          uri: lb://fleet-service-v2
+          predicates:
+            - Path=/api/fleet/**
+            - Method=GET,POST,PUT,DELETE
+            - Header=X-Canary,true
+            - Host=api.aquadrop.latam
+            - Weight=fleet,10
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,fleet-service-v2
+            - AddResponseHeader=X-Canary,true
+
+        # ==================== PAYMENT SERVICE ====================
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/**
+            - Method=GET,POST,PUT
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,payment-service
+            - name: RequestRateLimiter
+              args:
+                '[redis-rate-limiter.replenish-rate]': 5
+                '[redis-rate-limiter.burst-capacity]': 15
+                key-resolver: "#{@userIdKeyResolver}"
+
+        # ==================== NOTIFICATION SERVICE ====================
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+            - Method=GET,POST
+          filters:
+            - StripPrefix=2
+            - AddResponseHeader=X-Service,notification-service
+            - name: RequestRateLimiter
+              args:
+                '[redis-rate-limiter.replenish-rate]': 10
+                '[redis-rate-limiter.burst-capacity]': 30
+                key-resolver: "#{@userIdKeyResolver}"
+
+        # ==================== BETA ROUTES ====================
+        - id: beta-bookings
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/bookings/beta/**
+            - Query=beta,true
+            - Host=api.aquadrop.latam
+          filters:
+            - StripPrefix=3
+            - name: AddRequestHeader
+              args:
+                name: X-Beta
+                value: "true"
+
+        # ==================== ADMIN ROUTES (Internal Only) ====================
+        - id: admin-routes
+          uri: lb://admin-service
+          predicates:
+            - Path=/api/admin/**
+            - RemoteAddr=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+          filters:
+            - StripPrefix=2
+            - name: AddRequestHeader
+              args:
+                name: X-Admin-Request
+                value: "true"
+
+
+
+server:
+  port: 8080
+
+# Redis Configuration
+spring.data.redis:
+  host: localhost
+  port: 6379
+  timeout: 2000ms
+
+# Eureka
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+# OAuth2 / Keycloak - DISABLED TEMPORARILY
+# Note: Keycloak realm must be configured first before enabling OAuth2
+# Enable this section after:
+# 1. Creating realm "aquadrop" in Keycloak
+# 2. Creating client "aquadrop-gateway" with secret
+# 3. Setting KEYCLOAK_CLIENT_SECRET environment variable
+#spring.security.oauth2.client:
+#  registration:
+#    keycloak:
+#      client-id: aquadrop-gateway
+#      client-secret: ${KEYCLOAK_CLIENT_SECRET}
+#      authorization-grant-type: authorization_code
+#      redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+#      scope: openid,profile,email,bookings:write,fleet:assign,payments:charge,notify:send
+#      client-authentication-method: client_secret_basic
+#  provider:
+#    keycloak:
+#      issuer-uri: http://localhost:8888/realms/aquadrop
+#      user-name-attribute: preferred_username
+#
+#spring.security.oauth2.resourceserver.jwt:
+#  issuer-uri: http://localhost:8888/realms/aquadrop
+#  jwk-set-uri: http://localhost:8888/realms/aquadrop/protocol/openid-connect/certs
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway,trace
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        '[http.server.requests]': true
+      slo:
+        '[http.server.requests]': 50ms,100ms,200ms,500ms,1s
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+  otlp:
+    tracing:
+      endpoint: http://localhost:4317

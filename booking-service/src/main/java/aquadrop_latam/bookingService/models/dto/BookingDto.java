@@ -12,5 +12,5 @@ public class BookingDto {
     public Float priceEstimate;
     public String zone;
     public String address;
-    public Integer priorityTag;
+    public Integer priorityTag = 1; // Default to DEFAULT priority tag
 }

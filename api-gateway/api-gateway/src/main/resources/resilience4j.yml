@@ -1,0 +1,34 @@
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      gateway-breaker:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5000
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.net.ConnectException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - org.springframework.security.access.AccessDeniedException
+
+  retry:
+    instances:
+      gateway-retry:
+        maxAttempts: 3
+        waitDuration: 100
+        retryExceptions:
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+
+  ratelimiter:
+    instances:
+      default:
+        limitRefreshPeriod: 1m
+        limitForPeriod: 500

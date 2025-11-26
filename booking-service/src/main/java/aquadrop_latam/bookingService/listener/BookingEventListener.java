@@ -2,6 +2,8 @@ package aquadrop_latam.bookingService.listener;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -12,12 +14,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import aquadrop_latam.bookingService.events.BookingCancelledEvent;
 import aquadrop_latam.bookingService.events.PaymentAuthorizedEvent;
 import aquadrop_latam.bookingService.events.PaymentFailedEvent;
+import aquadrop_latam.bookingService.events.RefundIssuedEvent;
 import aquadrop_latam.bookingService.events.TankerAssignedEvent;
 import aquadrop_latam.bookingService.models.Booking;
 import aquadrop_latam.bookingService.service.BookingService;
 
 @Component
 public class BookingEventListener {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookingEventListener.class);
 
     @Autowired
     private BookingService bookingService;
@@ -27,16 +32,16 @@ public class BookingEventListener {
 
     @RabbitListener(queues = "payment.events.queue")
     public void handlePaymentEvents(@Payload Map<String, Object> eventData) {
-        handleBookigEvent(eventData);
+        handleBookingEvent(eventData);
     }
     
     @RabbitListener(queues = "fleet.events.queue") 
     public void handleFleetEvents(@Payload Map<String, Object> eventData) {
-        handleBookigEvent(eventData);
+        handleBookingEvent(eventData);
     }
 
-    public void handleBookigEvent(@Payload Map<String, Object> eventData) {
-        try{
+    public void handleBookingEvent(@Payload Map<String, Object> eventData) {
+        try {
             String eventType = (String) eventData.get("eventType");
             switch (eventType) {
                 case "PaymentAuthorizedEvent" -> {
@@ -49,18 +54,19 @@ public class BookingEventListener {
                 }
                 case "TankerAssignedEvent" -> {
                     TankerAssignedEvent tankerEvent = objectMapper.convertValue(eventData, TankerAssignedEvent.class);
-                    if (tankerEvent.success()) {
-                        handleTankerAssigned(tankerEvent);
-                    } else if (tankerEvent.success() == false) {
-                        handleTankerRejected(tankerEvent);
-                    }
+                    handleTankerAssigned(tankerEvent);
                 }
-                default -> System.out.println("Evento no reconocido: " + eventType);
+                case "RefundIssuedEvent" -> {
+                    RefundIssuedEvent refundEvent = objectMapper.convertValue(eventData, RefundIssuedEvent.class);
+                    handleRefundIssued(refundEvent);
+                }
+                default -> logger.info("Evento no reconocido: {}", eventType);
             }
-        } catch(Exception e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.error("Error procesando evento: {}", e.getMessage(), e);
         }
     }
+    
     /**
      * Maneja evento PaymentAuthorized - confirma la reserva según diagrama
      * BookingConfirmedEvent hace énfasis a paymentAuthorized
@@ -69,7 +75,7 @@ public class BookingEventListener {
         int bookingId = event.bookingId();
         String paymentId = event.paymentId();
         
-        System.out.println("Pago autorizado para booking: " + bookingId + ", paymentId: " + paymentId);
+        logger.info("💳 Pago autorizado para booking: {}, paymentId: {}", bookingId, paymentId);
         
         // Confirmar booking ahora que el pago fue autorizado
         bookingService.confirmBooking(bookingId, paymentId);
@@ -83,7 +89,7 @@ public class BookingEventListener {
         int bookingId = event.bookingId();
         String reason = event.reason();
         
-        System.out.println("Pago falló para booking: " + bookingId + ", razón: " + reason);
+        logger.warn("❌ Pago falló para booking: {}, razón: {}", bookingId, reason);
         
         // Cancelar booking por fallo en el pago
         bookingService.cancelBooking(bookingId, reason, BookingCancelledEvent.PAYMENT_FAILED);
@@ -94,21 +100,32 @@ public class BookingEventListener {
      */
     public void handleTankerAssigned(TankerAssignedEvent event) {
         int bookingId = event.bookingId();
-        System.out.println("Tanker asignado para booking: " + bookingId);
+        logger.info("🚚 Tanker asignado para booking: {} - Tanker: {}, Driver: {}", 
+                   bookingId, event.tankerId(), event.driverId());
         
         // El booking ya está confirmado, solo actualizamos logs o estado interno si es necesario
         Booking booking = bookingService.getBookingById(bookingId);
-        System.out.println("Booking " + bookingId + " tiene tanker asignado. Estado actual: " + booking.getStatus());
+        logger.info("✅ Booking {} tiene tanker asignado. Estado actual: {}", bookingId, booking.getStatus());
     }
 
     /**
-     * Maneja evento TankerRejected - cancela la reserva por rechazo de fleet
+     * Maneja evento RefundIssued - inicia compensación (Saga compensation pattern)
+     * Se dispara cuando la asignación de tanquero falla post-pago
      */
-    public void handleTankerRejected(TankerAssignedEvent event) {
+    public void handleRefundIssued(RefundIssuedEvent event) {
         int bookingId = event.bookingId();
-        System.out.println("Tanker rechazado para booking: " + bookingId);
+        Float refundAmount = event.refundAmount();
+        String reason = event.reason();
         
-        // Cancelar booking por rechazo del fleet service
-        bookingService.cancelBooking(bookingId, "Fleet service rechazó la asignación", BookingCancelledEvent.TANKER_REJECTED);
+        logger.warn("🔄 COMPENSACIÓN: Refund emitido para booking: {} - Monto: {}, Razón: {}", 
+                   bookingId, refundAmount, reason);
+        
+        // Cancelar booking con estado de reembolso
+        bookingService.cancelBooking(bookingId, 
+            "Cancelado con reembolso: " + reason, 
+            BookingCancelledEvent.REFUND_ISSUED);
+        
+        logger.info("✅ Booking cancelado con compensación - Reembolso de ${} procesado", refundAmount);
     }
 }
+
