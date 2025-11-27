@@ -177,27 +177,6 @@ function Test-Compensation {
     }
 }
 
-function Show-Tracing {
-    Write-Title "🔗 VER TRAZAS EN ZIPKIN"
-    
-    Write-Host @"
-Abre Zipkin en tu navegador:
-  → http://localhost:9411
-
-Pasos:
-  1. Busca por el Service: "booking-service"
-  2. Haz clic en "Find Traces"
-  3. Verás el flujo completo:
-     ✓ booking-service → payment-service → fleet-service → booking-service
-
-Emojis en logs:
-  📨 = Evento recibido
-  ✅ = Evento procesado exitosamente
-  ❌ = Error
-  🔄 = Compensación iniciada
-  📤 = Evento emitido
-"@ -ForegroundColor Green
-}
 
 # MAIN
 try {
@@ -205,12 +184,10 @@ try {
         "happy" {
             Test-ServiceHealth
             Test-HappyPath
-            Show-Tracing
         }
         "compensation" {
             Test-ServiceHealth
             Test-Compensation
-            Show-Tracing
         }
         "both" {
             Test-ServiceHealth
@@ -218,7 +195,6 @@ try {
             Write-Result "Esperando 5 segundos entre tests..." "warning"
             Start-Sleep -Seconds 5
             Test-Compensation
-            Show-Tracing
         }
     }
     
